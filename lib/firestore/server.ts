@@ -4,6 +4,62 @@ import { getFirestore, Firestore } from 'firebase-admin/firestore';
 let adminApp: App | undefined;
 let adminDb: Firestore | undefined;
 
+function tryParseServiceAccount(raw?: string): any {
+  if (!raw) return undefined;
+  let s = raw.trim();
+  // Strip surrounding quotes added by some env providers
+  if (
+    (s.startsWith("'") && s.endsWith("'")) ||
+    (s.startsWith('"') && s.endsWith('"'))
+  ) {
+    s = s.slice(1, -1);
+  }
+  // Replace escaped newlines often present in private keys
+  s = s.replace(/\\n/g, '\n');
+  // If not JSON, attempt Base64 decoding
+  if (!s.trim().startsWith('{')) {
+    try {
+      const decoded = Buffer.from(s, 'base64').toString('utf8');
+      if (decoded.trim().startsWith('{')) {
+        s = decoded;
+      }
+    } catch {
+      // ignore base64 decode failure
+    }
+  }
+  return JSON.parse(s);
+}
+
+function getServiceAccountFromEnv(): any {
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  if (raw) {
+    try {
+      return tryParseServiceAccount(raw);
+    } catch (e: any) {
+      throw new Error(
+        `Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY: ${e.message}. ` +
+          `Ensure the value is valid JSON (no extra quotes), or provide Base64-encoded JSON.`
+      );
+    }
+  }
+  // Fallback: support split credentials via individual env vars
+  const projectId =
+    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+  if (privateKey && privateKey.includes('\\n')) {
+    privateKey = privateKey.replace(/\\n/g, '\n');
+  }
+  if (projectId && clientEmail && privateKey) {
+    return {
+      project_id: projectId,
+      client_email: clientEmail,
+      private_key: privateKey,
+    };
+  }
+  return undefined;
+}
+
 function getAdminApp(): App {
   if (adminApp) {
     return adminApp;
@@ -46,9 +102,13 @@ function getAdminApp(): App {
   }
 
   try {
-    const serviceAccountKey = typeof serviceAccount === 'string' 
-      ? JSON.parse(serviceAccount) 
-      : serviceAccount;
+    const serviceAccountKey = getServiceAccountFromEnv();
+    if (!serviceAccountKey) {
+      throw new Error(
+        'Missing FIREBASE_SERVICE_ACCOUNT_KEY JSON and individual credential envs. ' +
+          'Provide either the full JSON or set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY.'
+      );
+    }
     adminApp = initializeApp({
       credential: cert(serviceAccountKey),
       projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'royal-exclusive-lemo',
