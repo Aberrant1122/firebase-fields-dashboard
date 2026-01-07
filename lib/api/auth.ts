@@ -58,11 +58,20 @@ class AuthAPI {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Signup failed');
+      const ct = response.headers.get('content-type') || '';
+      if (ct.includes('application/json')) {
+        const error = await response.json();
+        throw new Error(error.error || 'Signup failed');
+      } else {
+        const text = await response.text();
+        throw new Error(text || 'Signup failed');
+      }
     }
 
-    const result: AuthResponse = await response.json();
+    const ct = response.headers.get('content-type') || '';
+    const result: AuthResponse = ct.includes('application/json')
+      ? await response.json()
+      : JSON.parse(await response.text());
     this.setTokens(result.accessToken, result.refreshToken);
     sessionStorage.setItem('user', JSON.stringify(result.user));
     return result;
@@ -78,11 +87,20 @@ class AuthAPI {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Login failed');
+      const ct = response.headers.get('content-type') || '';
+      if (ct.includes('application/json')) {
+        const error = await response.json();
+        throw new Error(error.error || 'Login failed');
+      } else {
+        const text = await response.text();
+        throw new Error(text || 'Login failed');
+      }
     }
 
-    const result: AuthResponse = await response.json();
+    const ct = response.headers.get('content-type') || '';
+    const result: AuthResponse = ct.includes('application/json')
+      ? await response.json()
+      : JSON.parse(await response.text());
     this.setTokens(result.accessToken, result.refreshToken);
     sessionStorage.setItem('user', JSON.stringify(result.user));
     return result;
@@ -129,7 +147,10 @@ class AuthAPI {
         return null;
       }
 
-      const result = await response.json();
+      const ct = response.headers.get('content-type') || '';
+      const result = ct.includes('application/json')
+        ? await response.json()
+        : JSON.parse(await response.text());
       sessionStorage.setItem('accessToken', result.accessToken);
       return result.accessToken;
     } catch (error) {
@@ -167,7 +188,10 @@ class AuthAPI {
               },
             });
             if (retryResponse.ok) {
-              const result = await retryResponse.json();
+              const ct = retryResponse.headers.get('content-type') || '';
+              const result = ct.includes('application/json')
+                ? await retryResponse.json()
+                : JSON.parse(await retryResponse.text());
               return result.user;
             }
           }
@@ -175,7 +199,10 @@ class AuthAPI {
         return null;
       }
 
-      const result = await response.json();
+      const ct = response.headers.get('content-type') || '';
+      const result = ct.includes('application/json')
+        ? await response.json()
+        : JSON.parse(await response.text());
       return result.user;
     } catch (error) {
       console.error('Get current user error:', error);
