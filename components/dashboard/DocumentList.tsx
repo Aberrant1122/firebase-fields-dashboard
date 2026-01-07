@@ -62,7 +62,7 @@ export function DocumentList({ documents, collectionName, isLoading, error }: Do
               return (
                 <Link
                   key={docId}
-                  href={`/dashboard/${collectionName}/${docId}`}
+                  href={`/dashboard/${encodeURIComponent(collectionName)}/${encodeURIComponent(docId)}`}
                   className={`group flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl text-xs font-mono transition-all duration-200 touch-manipulation break-all ${
                     isActive
                       ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/30'

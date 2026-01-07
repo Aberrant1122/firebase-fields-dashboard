@@ -4,60 +4,47 @@ import { getFirestore, Firestore } from 'firebase-admin/firestore';
 let adminApp: App | undefined;
 let adminDb: Firestore | undefined;
 
-function tryParseServiceAccount(raw?: string): any {
-  if (!raw) return undefined;
-  let s = raw.trim();
-  // Strip surrounding quotes added by some env providers
-  if (
-    (s.startsWith("'") && s.endsWith("'")) ||
-    (s.startsWith('"') && s.endsWith('"'))
-  ) {
-    s = s.slice(1, -1);
-  }
-  // Replace escaped newlines often present in private keys
-  s = s.replace(/\\n/g, '\n');
-  // If not JSON, attempt Base64 decoding
-  if (!s.trim().startsWith('{')) {
-    try {
-      const decoded = Buffer.from(s, 'base64').toString('utf8');
-      if (decoded.trim().startsWith('{')) {
-        s = decoded;
-      }
-    } catch {
-      // ignore base64 decode failure
-    }
-  }
-  return JSON.parse(s);
-}
-
-function getServiceAccountFromEnv(): any {
+function resolveServiceAccount(): any | null {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-  if (raw) {
-    try {
-      return tryParseServiceAccount(raw);
-    } catch (e: any) {
-      throw new Error(
-        `Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY: ${e.message}. ` +
-          `Ensure the value is valid JSON (no extra quotes), or provide Base64-encoded JSON.`
-      );
-    }
-  }
-  // Fallback: support split credentials via individual env vars
+  const b64 = process.env.FIREBASE_SERVICE_ACCOUNT_KEY_BASE64;
   const projectId =
-    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID;
+    process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  let privateKey = process.env.FIREBASE_PRIVATE_KEY;
-  if (privateKey && privateKey.includes('\\n')) {
-    privateKey = privateKey.replace(/\\n/g, '\n');
+  const privateKeyRaw = process.env.FIREBASE_PRIVATE_KEY;
+
+  if (raw && raw.length > 0) {
+    let v = raw.trim();
+    if (
+      (v.startsWith("'") && v.endsWith("'")) ||
+      (v.startsWith('"') && v.endsWith('"'))
+    ) {
+      v = v.slice(1, -1);
+    }
+    try {
+      return JSON.parse(v);
+    } catch {}
+    try {
+      const decoded = Buffer.from(v, 'base64').toString('utf8');
+      return JSON.parse(decoded);
+    } catch {}
+    throw new Error('Invalid FIREBASE_SERVICE_ACCOUNT_KEY format');
   }
-  if (projectId && clientEmail && privateKey) {
+
+  if (b64 && b64.length > 0) {
+    const decoded = Buffer.from(b64, 'base64').toString('utf8');
+    return JSON.parse(decoded);
+  }
+
+  if (projectId && clientEmail && privateKeyRaw) {
+    const privateKey = privateKeyRaw.replace(/\\n/g, '\n');
     return {
       project_id: projectId,
       client_email: clientEmail,
       private_key: privateKey,
     };
   }
-  return undefined;
+
+  return null;
 }
 
 function getAdminApp(): App {
@@ -73,9 +60,9 @@ function getAdminApp(): App {
 
   // For Admin SDK, we need service account credentials
   // These should be in environment variables
-  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  const serviceAccountKey = resolveServiceAccount();
   
-  if (!serviceAccount) {
+  if (!serviceAccountKey) {
     // Check if we are in production or have some indication that ADC might be available
     // Otherwise, throw a clear error to prevent the confusing "Could not load default credentials" crash
     if (process.env.NODE_ENV === 'development') {
@@ -102,13 +89,6 @@ function getAdminApp(): App {
   }
 
   try {
-    const serviceAccountKey = getServiceAccountFromEnv();
-    if (!serviceAccountKey) {
-      throw new Error(
-        'Missing FIREBASE_SERVICE_ACCOUNT_KEY JSON and individual credential envs. ' +
-          'Provide either the full JSON or set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY.'
-      );
-    }
     adminApp = initializeApp({
       credential: cert(serviceAccountKey),
       projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'royal-exclusive-lemo',

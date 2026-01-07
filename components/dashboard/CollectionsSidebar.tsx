@@ -56,11 +56,12 @@ export function CollectionsSidebar({ collections, isLoading, error }: Collection
         ) : (
           <nav className="p-2 sm:p-3 space-y-1">
             {collections.map((collection) => {
-              const isActive = currentCollection === collection;
+              const isActive = decodeURIComponent(currentCollection || '') === collection;
+              const encodedCollection = encodeURIComponent(collection);
               return (
                 <Link
                   key={collection}
-                  href={`/dashboard/${collection}`}
+                  href={`/dashboard/${encodedCollection}`}
                   className={`group flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl text-xs sm:text-sm font-medium transition-all duration-200 touch-manipulation ${
                     isActive
                       ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/30'

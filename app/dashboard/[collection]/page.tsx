@@ -83,7 +83,7 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
                   {documents.map((docId) => (
                     <a
                       key={docId}
-                      href={`/dashboard/${collection}/${docId}`}
+                      href={`/dashboard/${encodeURIComponent(collection)}/${encodeURIComponent(docId)}`}
                       className="block px-3 py-2 text-xs font-mono bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors break-all"
                     >
                       {docId}

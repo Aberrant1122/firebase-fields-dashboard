@@ -2,18 +2,16 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { authAPI } from '@/lib/api/auth';
 
 export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const isAuthenticated = sessionStorage.getItem('isAuthenticated');
-      if (isAuthenticated === 'true') {
-        router.push('/dashboard');
-      } else {
-        router.push('/login');
-      }
+    if (authAPI.isAuthenticated()) {
+      router.push('/dashboard');
+    } else {
+      router.push('/login');
     }
   }, [router]);
 

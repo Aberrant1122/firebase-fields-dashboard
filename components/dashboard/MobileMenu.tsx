@@ -44,11 +44,12 @@ export function MobileMenu({ collections, isOpen, onClose }: MobileMenuProps) {
         
         <nav className="p-3 space-y-1">
           {collections.map((collection) => {
-            const isActive = currentCollection === collection;
+            const isActive = decodeURIComponent(currentCollection || '') === collection;
+            const encodedCollection = encodeURIComponent(collection);
             return (
               <Link
                 key={collection}
-                href={`/dashboard/${collection}`}
+                href={`/dashboard/${encodedCollection}`}
                 onClick={onClose}
                 className={`block px-4 py-3 rounded-xl text-sm font-medium transition-all ${
                   isActive

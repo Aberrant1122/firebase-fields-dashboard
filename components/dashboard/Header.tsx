@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { authAPI, User } from '@/lib/api/auth';
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -9,18 +10,26 @@ interface HeaderProps {
 
 export function Header({ onMenuClick }: HeaderProps) {
   const router = useRouter();
-  const [userEmail, setUserEmail] = useState<string>('');
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const email = sessionStorage.getItem('userEmail');
-      if (email) setUserEmail(email);
-    }
+    const loadUser = async () => {
+      const currentUser = authAPI.getUser();
+      if (currentUser) {
+        setUser(currentUser);
+      } else {
+        // Try to fetch from API
+        const apiUser = await authAPI.getCurrentUser();
+        if (apiUser) {
+          setUser(apiUser);
+        }
+      }
+    };
+    loadUser();
   }, []);
 
-  const handleLogout = () => {
-    sessionStorage.removeItem('isAuthenticated');
-    sessionStorage.removeItem('userEmail');
+  const handleLogout = async () => {
+    await authAPI.logout();
     router.push('/login');
   };
 
@@ -54,8 +63,8 @@ export function Header({ onMenuClick }: HeaderProps) {
       
       <div className="flex items-center gap-2 sm:gap-4">
         <div className="text-right hidden md:block">
-          <p className="text-sm font-medium text-gray-900 dark:text-white truncate max-w-[200px]">{userEmail}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Administrator</p>
+          <p className="text-sm font-medium text-gray-900 dark:text-white truncate max-w-[200px]">{user?.email || 'Loading...'}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{user?.name || 'Administrator'}</p>
         </div>
         <button
           onClick={handleLogout}
